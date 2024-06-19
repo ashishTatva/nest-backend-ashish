@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { FindAndCountResponse } from 'src/utils/interfaces/PaginationResponse.Interface';
 import { Book } from './entities/book.entity';
 import { PaginationDto } from './dto/pagination.dto';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
@@ -33,7 +33,7 @@ export class BookService {
     {
       page = 0,
       pageSize = 10,
-      sortModel = [{ field: 'id', sort: 'ASC' }],
+      sortModel = [{ field: 'b.id', sort: 'ASC' }],
     }: PaginationDto,
   ): Promise<FindAndCountResponse<Book>> {
     const order = {};
@@ -41,11 +41,21 @@ export class BookService {
       order[obj.field] = obj.sort.toUpperCase();
     });
 
-    const [rows, totalRecords] = await this.bookRepository.findAndCount({
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      order: order,
-    });
+    const queryBuilder: SelectQueryBuilder<Book> = this.bookRepository
+      .createQueryBuilder('b')
+      .leftJoin(
+        'rental',
+        'r',
+        'b.id = r.book_id AND r.customer_id = :customerId',
+        { customerId },
+      )
+      .where('r.book_id IS NULL AND r.submitted_at IS NULL')
+      .addSelect(['b.*'])
+      .orderBy(order)
+      .skip((page - 1) * pageSize)
+      .take(pageSize);
+
+    const [rows, totalRecords] = await queryBuilder.getManyAndCount();
 
     return { rows, totalRecords };
   }
