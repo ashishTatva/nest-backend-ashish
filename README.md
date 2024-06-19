@@ -22,7 +22,7 @@ $ npm run start
 ## Login Credentials
 
 ```
-Username: john.deo@example.com
+Username: john.doe@example.com
 Password: password123
 
 ```
